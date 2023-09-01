@@ -1,4 +1,10 @@
 """
+This is a simple script to sense if a garage door is open.  If it is open, then
+send an AWS REST API request.  The request triggers a Simple Notification Service
+message which is sent to my phone.
+
+An alternative to using AWS is "pushover.net" which also can be configured to send
+SMS messages to your phone.
 """
 import time
 
@@ -64,6 +70,7 @@ if connect():
     while True:
         # if connection is broken, the garage door is open
         if not contact_switch.value():
+            # Tell the REST API so we get a notification
             requests.post(secrets.URL,
                           headers={'content-type': 'application/json'})
             time.sleep(PAUSE_MINUTES)
