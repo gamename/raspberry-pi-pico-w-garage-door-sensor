@@ -17,12 +17,13 @@ def set_picow_hostname(name):
     Set the hostname of the Raspberry Pi Pico W
 
     Args:
-        name - a string truncated at 15 characters
+        name - a string
 
     Returns:
         Nothing
     """
-    if name.length() > MAX_HOSTNAME_LENGTH:
+    if len(name) > MAX_HOSTNAME_LENGTH:
+        # current api only allows a max of 15 chars
         new_name = name[:MAX_HOSTNAME_LENGTH]
     else:
         new_name = name
@@ -30,19 +31,17 @@ def set_picow_hostname(name):
     return
 
 
-def connect(hostname):
+def connect():
     """
     Connect to Wi-Fi
 
-    Args:
-        hostname - a string
+    Args: None
 
     Returns:
         True when successful
     """
     led = Pin("LED", Pin.OUT)
     led.off()
-    set_picow_hostname(hostname)
     wlan = network.WLAN(network.STA_IF)
     wlan.config(pm=0xa11140)  # turn OFF power save mode
     wlan.active(True)
@@ -55,16 +54,16 @@ def connect(hostname):
 
 
 MINUTES = 10
-
 CONTACT_PIN = 0
-
 PAUSE_MINUTES = 60 * MINUTES
+contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_UP)
 
-reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_UP)
+set_picow_hostname('pico-garage')
 
-if connect('pico-garage'):
+if connect():
     while True:
-        if not reed_switch.value():
+        # if connection is broken, the garage door is open
+        if not contact_switch.value():
             requests.post(secrets.URL,
                           headers={'content-type': 'application/json'})
             time.sleep(PAUSE_MINUTES)
