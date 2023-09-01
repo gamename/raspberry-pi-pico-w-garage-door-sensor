@@ -54,7 +54,7 @@ def connect(hostname):
     return True
 
 
-MINUTES = 1
+MINUTES = 10
 
 CONTACT_PIN = 0
 
