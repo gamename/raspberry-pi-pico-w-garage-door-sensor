@@ -8,7 +8,7 @@ from machine import Pin
 
 import secrets
 
-MAX_STRING_LENGTH = 15  # The API only allows a max of 15 chars (grr)
+MAX_HOSTNAME_LENGTH = 15  # The API only allows a max of 15 chars (grr)
 NETWORK_SLEEP_INTERVAL = 10  # seconds
 
 
@@ -22,8 +22,8 @@ def set_picow_hostname(name):
     Returns:
         Nothing
     """
-    if name.length() > MAX_STRING_LENGTH:
-        new_name = name[:MAX_STRING_LENGTH]
+    if name.length() > MAX_HOSTNAME_LENGTH:
+        new_name = name[:MAX_HOSTNAME_LENGTH]
     else:
         new_name = name
     network.hostname(new_name)
