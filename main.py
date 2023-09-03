@@ -14,9 +14,10 @@ from machine import Pin
 
 import secrets
 
+CONTACT_PIN = 22  # GPIO pin 22 (physical pin 29)
+
 NETWORK_SLEEP_INTERVAL = 10  # seconds
 MINUTES = 10
-CONTACT_PIN = 0
 PAUSE_MINUTES = 60 * MINUTES
 
 
@@ -44,7 +45,7 @@ def connect(hostname):
 
 
 def main():
-    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_UP)
+    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
 
     if connect(secrets.HOSTNAME):
         while True:
