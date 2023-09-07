@@ -16,8 +16,13 @@ import secrets
 
 CONTACT_PIN = 22  # GPIO pin 22 (physical pin 29)
 
+# How long to sleep between network connection attempts?
 NETWORK_SLEEP_INTERVAL = 10  # seconds
+
+# How long to pause before checking for the garage being open?
 MINUTES = 10
+
+# Now, calculate the pause minutes
 PAUSE_MINUTES = 60 * MINUTES
 
 
@@ -45,12 +50,11 @@ def connect(hostname):
 
 
 def main():
-    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
-
+    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_UP)
     if connect(secrets.HOSTNAME):
         while True:
             # if connection is broken, the garage door is open
-            if not contact_switch.value():
+            if contact_switch.value():
                 # Tell the REST API so we get a notification
                 requests.post(secrets.URL, headers={'content-type': 'application/json'})
                 time.sleep(PAUSE_MINUTES)
