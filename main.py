@@ -50,11 +50,11 @@ def connect(hostname):
 
 
 def main():
-    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_UP)
+    contact_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
     if connect(secrets.HOSTNAME):
         while True:
             # if connection is broken, the garage door is open
-            if contact_switch.value():
+            if not contact_switch.value():
                 # Tell the REST API so we get a notification
                 requests.post(secrets.URL, headers={'content-type': 'application/json'})
                 time.sleep(PAUSE_MINUTES)
