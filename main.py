@@ -1,63 +1,106 @@
 """
-This is a simple script to sense if a garage door is open.  If it is open, then
-send an AWS REST API request.  The request triggers a Simple Notification Service
-message which is sent to my phone.
 
-An alternative to using AWS is "pushover.net" which also can be configured to send
-SMS messages to your phone.
+
+Pico W 3v3/Physical pin #36 ----> reed switch (normally open) ----> Pico W GPIO Pin #22/Physical Pin #29
+
+
+
 """
 import time
 
 import network
 import urequests as requests
-from machine import Pin
+from machine import Pin, reset, WDT
 
 import secrets
 
-CONTACT_PIN = 0  # GPIO pin 0 (physical pin 1)
+CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
 # How long to sleep between network connection attempts?
-NETWORK_SLEEP_INTERVAL = 10  # seconds
+NETWORK_SLEEP_INTERVAL = 5  # seconds
 
-# How long to pause before checking for the garage being open?
-MINUTES = 10
+# How many times should we try to start the network connection?
+MAX_NETWORK_CONNECTION_ATTEMPTS = 20
 
-# Now, calculate the pause minutes
-PAUSE_MINUTES = 60 * MINUTES
+# If watchdog is not 'fed' in 8 seconds, initiate a hard reset
+WATCHDOG_TIMEOUT = 8000  # 8 seconds
+
+# Time to wait while the door has been opened
+DOOR_OPEN_STATE_TIMER = 300  # seconds
 
 
-def connect(hostname):
+def wifi_connect(dog, wlan):
     """
     Connect to Wi-Fi
 
-    Args: hostname
+    :param dog - a watchdog timer
+    :param wlan - a wifi network handle
 
     Returns:
-        True when successful
+        True when successful, hard reset if not
     """
     led = Pin("LED", Pin.OUT)
     led.off()
-    network.hostname(hostname)
-    wlan = network.WLAN(network.STA_IF)
-    wlan.config(pm=0xa11140)  # turn OFF power save mode
+    wlan.config(pm=wlan.PM_NONE)  # turn OFF power save mode
     wlan.active(True)
     time.sleep(NETWORK_SLEEP_INTERVAL)
+    dog.feed()
+    print("attempting network restart")
+    counter = 0
     while not wlan.isconnected():
+        print(f'attempt: {counter}')
         wlan.connect(secrets.SSID, secrets.PASSWORD)
         time.sleep(NETWORK_SLEEP_INTERVAL)
+        counter += 1
+        if counter > MAX_NETWORK_CONNECTION_ATTEMPTS:
+            print("network connection attempts exceeded! Restarting")
+            reset()
+        dog.feed()
     led.on()
+    print("successfully connected to network!")
     return True
 
 
+def handle_door_open_state(watchdog, reed_switch):
+    """
+    Deal with the situation where the mailbox door has been opened
+
+    :param watchdog: A watchdog timer
+    :param reed_switch: A reed switch handle
+    :return: Nothing
+    """
+    state_counter = 0
+    # Set a timer to keep us from re-sending SMS notices
+    while state_counter < DOOR_OPEN_STATE_TIMER:
+        print("in door open state")
+        state_counter += 1
+        time.sleep(1)
+        watchdog.feed()
+        # If the mailbox door is closed, exit the state timer
+        if reed_switch.value():
+            print("exiting door open state")
+            break
+
+
 def main():
-    reed_switch_on = Pin(CONTACT_PIN, Pin.IN)
-    if connect(secrets.HOSTNAME):
+    watchdog = WDT(timeout=WATCHDOG_TIMEOUT)
+    network.hostname(secrets.HOSTNAME)
+    wlan = network.WLAN(network.STA_IF)
+    reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
+    watchdog.feed()
+    if wifi_connect(watchdog, wlan):
+        print("starting event loop")
         while True:
-            # if connection is broken, the garage door is open
-            if not reed_switch_on.value():
-                # Tell the REST API so we get a notification
-                requests.post(secrets.URL, headers={'content-type': 'application/json'})
-                time.sleep(PAUSE_MINUTES)
+            if not reed_switch.value():
+                print("Door opened!")
+                requests.post(secrets.REST_API_URL, headers={'content-type': 'application/json'})
+                handle_door_open_state(watchdog, reed_switch)
+
+            if not wlan.isconnected():
+                print("restart network connection!")
+                wifi_connect(watchdog, wlan)
+
+            watchdog.feed()
 
 
 if __name__ == "__main__":

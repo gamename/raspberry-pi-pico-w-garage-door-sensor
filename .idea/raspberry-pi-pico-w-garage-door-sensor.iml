@@ -16,4 +16,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="MicroPython" level="project" />
   </component>
+  <component name="SonarLintModuleSettings">
+    <option name="uniqueId" value="4d652179-8e2a-4adf-ad60-5bd816fb29b9" />
+  </component>
 </module>
