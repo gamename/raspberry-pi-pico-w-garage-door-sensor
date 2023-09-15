@@ -5,8 +5,8 @@ import boto3
 
 
 def handler(event, context):
-    print(event)
-    print(context)
+    print(event)  # for diagnostics
+    print(context)  # keeps lint happy
 
     client = boto3.client('sns')
 
@@ -25,5 +25,5 @@ def handler(event, context):
             'Access-Control-Allow-Headers': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS'
         },
-        'body': json.dumps('Set garage door open!')
+        'body': json.dumps('Set garage door status to open')
     }
