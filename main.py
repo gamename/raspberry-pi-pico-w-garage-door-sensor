@@ -120,7 +120,7 @@ def wifi_connect(wlan, ssid, password, connection_attempts=10, sleep_seconds_int
     print("WIFI: Successfully connected to network")
 
 
-def max_reset_attempts_exceeded(max_exception_resets=10):
+def max_reset_attempts_exceeded(max_exception_resets=2):
     """
     Determine when to stop trying to reset the system when exceptions are
     encountered. Each exception will create a traceback log file.  When there
@@ -206,6 +206,6 @@ if __name__ == "__main__":
             requests.post(secrets.REST_CRASH_NOTIFY_URL,
                           data=secrets.HOSTNAME,
                           headers={'content-type': 'application/json'})
-            flash_led(1000, 3)  # slow flashing
+            flash_led(3000, 3)  # slow flashing for about 2.5 hours
         else:
             reset()
