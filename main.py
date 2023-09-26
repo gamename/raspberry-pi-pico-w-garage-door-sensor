@@ -193,7 +193,10 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         log_traceback(exc)
+        #
+        # This is a gamble. If the crash happens in the wrong place,
+        # the below request is a waste of time. But... its worth a try.
         requests.post(secrets.REST_CRASH_NOTIFY_URL,
                       data=secrets.HOSTNAME,
                       headers={'content-type': 'application/json'})
-        flash_led()
+        flash_led(1000, 3)  # slow flashing
