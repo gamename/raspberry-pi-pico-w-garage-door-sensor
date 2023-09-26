@@ -7,6 +7,7 @@ Pico W 3v3/Physical pin #36 ----> reed switch (normally open) ----> Pico W GPIO 
 
 """
 import gc
+import os
 import sys
 import time
 
