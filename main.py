@@ -120,7 +120,7 @@ def wifi_connect(wlan, ssid, password, connection_attempts=10, sleep_seconds_int
     print("WIFI: Successfully connected to network")
 
 
-def max_reset_attempts_exceeded(max_exception_resets=2):
+def max_reset_attempts_exceeded(max_exception_resets=3):
     """
     Determine when to stop trying to reset the system when exceptions are
     encountered. Each exception will create a traceback log file.  When there
