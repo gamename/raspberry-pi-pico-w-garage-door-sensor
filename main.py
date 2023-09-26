@@ -30,9 +30,6 @@ DOOR_RECHECK_PAUSE_TIMER = 600  # seconds (10 min)
 #
 # Over-the-air (OTA) Updates
 #
-# How often should we check for updates?
-OTA_UPDATE_GITHUB_CHECK_INTERVAL = 600  # seconds (10 min)
-#
 # This is a dictionary of repos and their files we will be auto-updating
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
@@ -153,6 +150,25 @@ def ota_update_check(updater):
         reset()
 
 
+def ota_update_interval_exceeded(timer, interval=600):
+    """
+    Determine of we have waited long enough to check for OTA
+    file updates.
+
+    :param timer: The ota timer that tells us how long we have been waiting
+    :type timer: timer
+    :param interval: What is the max wait time? Defaults to 600 seconds (10 min)
+    :type interval: int
+    :return: True or False
+    :rtype: bool
+    """
+    exceeded = False
+    ota_elapsed = int(time.time() - timer)
+    if ota_elapsed > interval:
+        exceeded = True
+    return exceeded
+
+
 def main():
     #
     # Set up a timer to force reboot on system hang
@@ -189,8 +205,7 @@ def main():
             print("MAIN: Restart network connection.")
             wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
 
-        ota_elapsed = int(time.time() - ota_timer)
-        if ota_elapsed > OTA_UPDATE_GITHUB_CHECK_INTERVAL and garage_door_closed:
+        if ota_update_interval_exceeded(ota_timer) and garage_door_closed:
             ota_update_check(ota_updater)
             ota_timer = time.time()
 
