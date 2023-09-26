@@ -39,10 +39,6 @@ OTA_UPDATE_GITHUB_REPOS = {
     "gamename/micropython-over-the-air-utility": ["ota.py"]
 }
 
-#
-# How many times should we do a hard reset after an exception?
-MAX_EXCEPTION_RESETS = 10
-
 
 def current_time_to_string():
     """
@@ -124,13 +120,15 @@ def wifi_connect(wlan, ssid, password, connection_attempts=10, sleep_seconds_int
     print("WIFI: Successfully connected to network")
 
 
-def max_reset_attempts_exceeded():
+def max_reset_attempts_exceeded(max_exception_resets=10):
     """
     Determine when to stop trying to reset the system when exceptions are
     encountered. Each exception will create a traceback log file.  When there
     are too many logs, we give up trying to reset the system.  Prevents an
     infinite crash-reset-crash loop.
 
+    :param max_exception_resets: How many times do we crash before we give up?
+    :type max_exception_resets: int
     :return: True if we should stop resetting, False otherwise
     :rtype: bool
     """
@@ -139,7 +137,7 @@ def max_reset_attempts_exceeded():
     for file in files:
         if file.endswith(".log"):
             log_file_count += 1
-    return bool(log_file_count > MAX_EXCEPTION_RESETS)
+    return bool(log_file_count > max_exception_resets)
 
 
 def main():
