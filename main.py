@@ -31,7 +31,7 @@ DOOR_RECHECK_PAUSE_TIMER = 600  # seconds (10 min)
 # Over-the-air (OTA) Updates
 #
 # How often should we check for updates?
-OTA_UPDATE_GITHUB_CHECK_INTERVAL = 14400  # seconds (4 hours)
+OTA_UPDATE_GITHUB_CHECK_INTERVAL = 300  # seconds (5 min)
 #
 # This is a dictionary of repos and their files we will be auto-updating
 OTA_UPDATE_GITHUB_REPOS = {
@@ -193,6 +193,7 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         log_traceback(exc)
+        requests.post(secrets.REST_CRASH_NOTIFY_URL,
+                      data=secrets.HOSTNAME,
+                      headers={'content-type': 'application/json'})
         flash_led()
-        if not max_reset_attempts_exceeded():
-            reset()
