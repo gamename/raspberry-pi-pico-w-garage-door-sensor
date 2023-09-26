@@ -31,7 +31,7 @@ DOOR_RECHECK_PAUSE_TIMER = 600  # seconds (10 min)
 # Over-the-air (OTA) Updates
 #
 # How often should we check for updates?
-OTA_UPDATE_GITHUB_CHECK_INTERVAL = 300  # seconds (5 min)
+OTA_UPDATE_GITHUB_CHECK_INTERVAL = 600  # seconds (10 min)
 #
 # This is a dictionary of repos and their files we will be auto-updating
 OTA_UPDATE_GITHUB_REPOS = {
@@ -140,6 +140,18 @@ def max_reset_attempts_exceeded(max_exception_resets=10):
     return bool(log_file_count > max_exception_resets)
 
 
+def ota_update_check(updater):
+    #
+    # The update process is memory intensive, so make sure
+    # we have all the resources we need.
+    gc.collect()
+
+    if updater.updated():
+        print("CHECK: Restarting device after update")
+        time.sleep(1)  # Gives the system time to print the above msg
+        reset()
+
+
 def main():
     #
     # Set up a timer to force reboot on system hang
@@ -159,6 +171,9 @@ def main():
     ota_updater = OTAUpdater(secrets.GITHUB_USER,
                              secrets.GITHUB_TOKEN,
                              OTA_UPDATE_GITHUB_REPOS)
+
+    ota_update_check(ota_updater)
+
     ota_timer = time.time()
     print("MAIN: Starting event loop")
     while True:
@@ -175,16 +190,7 @@ def main():
 
         ota_elapsed = int(time.time() - ota_timer)
         if ota_elapsed > OTA_UPDATE_GITHUB_CHECK_INTERVAL and garage_door_closed:
-            #
-            # The update process is memory intensive, so make sure
-            # we have all the resources we need.
-            gc.collect()
-
-            if ota_updater.updated():
-                print("MAIN: Restarting device after update")
-                time.sleep(1)  # Gives the system time to print the above msg
-                reset()
-
+            ota_update_check(ota_updater)
             ota_timer = time.time()
 
 
