@@ -36,7 +36,8 @@ OTA_UPDATE_GITHUB_CHECK_INTERVAL = 600  # seconds (10 min)
 # This is a dictionary of repos and their files we will be auto-updating
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
-    "gamename/micropython-over-the-air-utility": ["ota.py"]
+    "gamename/micropython-over-the-air-utility": ["ota.py"],
+    "gamename/micropython-utilities": ["utils.py"]
 }
 
 
