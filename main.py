@@ -6,102 +6,194 @@ Pico W 3v3/Physical pin #36 ----> reed switch (normally open) ----> Pico W GPIO 
 
 
 """
+import gc
+import sys
 import time
 
 import network
+import ntptime
+import uio
 import urequests as requests
-from machine import Pin, reset, WDT
+import utime
+from machine import Pin, reset
+from ota import OTAUpdater
 
 import secrets
 
 CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
-# How long to sleep between network connection attempts?
-NETWORK_SLEEP_INTERVAL = 5  # seconds
+#
+# how long between door state rechecks?
+DOOR_RECHECK_PAUSE_TIMER = 600  # seconds (10 min)
 
-# How many times should we try to start the network connection?
-MAX_NETWORK_CONNECTION_ATTEMPTS = 20
+#
+# Over-the-air (OTA) Updates
+#
+# How often should we check for updates?
+OTA_UPDATE_GITHUB_CHECK_INTERVAL = 14400  # seconds (4 hours)
+#
+# This is a dictionary of repos and their files we will be auto-updating
+OTA_UPDATE_GITHUB_REPOS = {
+    "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
+    "gamename/micropython-over-the-air-utility": ["ota.py"]
+}
 
-# If watchdog is not 'fed' in 8 seconds, initiate a hard reset
-WATCHDOG_TIMEOUT = 8000  # 8 seconds
-
-# Time to wait while the door has been opened
-DOOR_OPEN_STATE_TIMER = 300  # seconds
+#
+# How many times should we do a hard reset after an exception?
+MAX_EXCEPTION_RESETS = 10
 
 
-def wifi_connect(dog, wlan):
+def current_time_to_string():
     """
-    Connect to Wi-Fi
+    Convert the current time to a human-readable string
 
-    :param dog - a watchdog timer
-    :param wlan - a wifi network handle
-
-    Returns:
-        True when successful, hard reset if not
+    :return: timestamp string
+    :rtype: str
     """
-    led = Pin("LED", Pin.OUT)
-    led.off()
-    wlan.config(pm=wlan.PM_NONE)  # turn OFF power save mode
-    wlan.active(True)
-    time.sleep(NETWORK_SLEEP_INTERVAL)
-    dog.feed()
-    print("attempting network restart")
-    counter = 0
-    while not wlan.isconnected():
-        print(f'attempt: {counter}')
-        wlan.connect(secrets.SSID, secrets.PASSWORD)
-        time.sleep(NETWORK_SLEEP_INTERVAL)
-        counter += 1
-        if counter > MAX_NETWORK_CONNECTION_ATTEMPTS:
-            print("network connection attempts exceeded! Restarting")
-            reset()
-        dog.feed()
-    led.on()
-    print("successfully connected to network!")
-    return True
+    current_time = utime.localtime()
+    year, month, day_of_month, hour, minute, second, *_ = current_time
+    return f'{year}-{month}-{day_of_month}-{hour}-{minute}-{second}'
 
 
-def handle_door_open_state(watchdog, reed_switch):
+def log_traceback(exception):
     """
-    Deal with the situation where the mailbox door has been opened
+    Keep a log of the latest traceback
 
-    :param watchdog: A watchdog timer
-    :param reed_switch: A reed switch handle
+    :param exception: An exception intercepted in a try/except statement
+    :type exception: exception
     :return: Nothing
     """
-    state_counter = 0
-    # Set a timer to keep us from re-sending SMS notices
-    while state_counter < DOOR_OPEN_STATE_TIMER:
-        print("in door open state")
-        state_counter += 1
-        time.sleep(1)
-        watchdog.feed()
-        # If the mailbox door is closed, exit the state timer
-        if reed_switch.value():
-            print("exiting door open state")
-            break
+    traceback_stream = uio.StringIO()
+    sys.print_exception(exception, traceback_stream)
+    traceback_file = current_time_to_string() + '-' + 'traceback.log'
+    with open(traceback_file, 'w') as f:
+        f.write(traceback_stream.getvalue())
+
+
+def flash_led(count=100, interval=0.25):
+    """
+    Flash on-board LED
+
+    :param: How many times to flash
+    :param: Interval between flashes
+
+    :return: Nothing
+    """
+    led = Pin("LED", Pin.OUT)
+    for _ in range(count):
+        led.toggle()
+        time.sleep(interval)
+    led.off()
+
+
+def wifi_connect(wlan, ssid, password, connection_attempts=10, sleep_seconds_interval=3):
+    """
+    Start a Wi-Fi connection
+
+    :param wlan: A network handle
+    :type wlan: network.WLAN
+    :param ssid: Wi-Fi SSID
+    :type ssid: str
+    :param password: Wi-Fi password
+    :type password: str
+    :param connection_attempts: How many times should we attempt to connect?
+    :type connection_attempts: int
+    :param sleep_seconds_interval: Sleep time between attempts
+    :type sleep_seconds_interval: int
+    :return: Nothing
+    :rtype: None
+    """
+
+    led = Pin("LED", Pin.OUT)
+    led.off()
+    print("WIFI: Attempting network connection")
+    wlan.active(True)
+    time.sleep(sleep_seconds_interval)
+    counter = 0
+    wlan.connect(ssid, password)
+    while not wlan.isconnected():
+        print(f'WIFI: Attempt: {counter}')
+        time.sleep(sleep_seconds_interval)
+        counter += 1
+        if counter > connection_attempts:
+            print("WIFI: Network connection attempts exceeded. Restarting")
+            time.sleep(1)
+            reset()
+    led.on()
+    print("WIFI: Successfully connected to network")
+
+
+def max_reset_attempts_exceeded():
+    """
+    Determine when to stop trying to reset the system when exceptions are
+    encountered. Each exception will create a traceback log file.  When there
+    are too many logs, we give up trying to reset the system.  Prevents an
+    infinite crash-reset-crash loop.
+
+    :return: True if we should stop resetting, False otherwise
+    :rtype: bool
+    """
+    log_file_count = 0
+    files = os.listdir()
+    for file in files:
+        if file.endswith(".log"):
+            log_file_count += 1
+    return bool(log_file_count > MAX_EXCEPTION_RESETS)
 
 
 def main():
-    watchdog = WDT(timeout=WATCHDOG_TIMEOUT)
+    #
+    # Set up a timer to force reboot on system hang
     network.hostname(secrets.HOSTNAME)
+    #
+    # Turn OFF the access point interface
+    ap_if = network.WLAN(network.AP_IF)
+    ap_if.active(False)
+    #
+    # Turn ON and connect the station interface
     wlan = network.WLAN(network.STA_IF)
+    wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
+    #
+    # Sync system time with NTP
+    ntptime.settime()
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
-    watchdog.feed()
-    if wifi_connect(watchdog, wlan):
-        print("starting event loop")
-        while True:
-            if not reed_switch.value():
-                print("Door opened!")
-                requests.post(secrets.REST_API_URL, headers={'content-type': 'application/json'})
-                handle_door_open_state(watchdog, reed_switch)
+    ota_updater = OTAUpdater(secrets.GITHUB_USER,
+                             secrets.GITHUB_TOKEN,
+                             OTA_UPDATE_GITHUB_REPOS)
+    ota_timer = time.time()
+    print("MAIN: Starting event loop")
+    while True:
+        garage_door_closed = reed_switch.value()
 
-            if not wlan.isconnected():
-                print("restart network connection!")
-                wifi_connect(watchdog, wlan)
+        if not garage_door_closed:
+            print("MAIN: Door opened.")
+            requests.post(secrets.REST_API_URL, headers={'content-type': 'application/json'})
+            time.sleep(DOOR_RECHECK_PAUSE_TIMER)
 
-            watchdog.feed()
+        if not wlan.isconnected():
+            print("MAIN: Restart network connection.")
+            wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
+
+        ota_elapsed = int(time.time() - ota_timer)
+        if ota_elapsed > OTA_UPDATE_GITHUB_CHECK_INTERVAL and garage_door_closed:
+            #
+            # The update process is memory intensive, so make sure
+            # we have all the resources we need.
+            gc.collect()
+
+            if ota_updater.updated():
+                print("MAIN: Restarting device after update")
+                time.sleep(1)  # Gives the system time to print the above msg
+                reset()
+
+            ota_timer = time.time()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        log_traceback(exc)
+        flash_led()
+        if not max_reset_attempts_exceeded():
+            reset()
