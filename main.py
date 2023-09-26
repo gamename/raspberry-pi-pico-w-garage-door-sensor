@@ -193,16 +193,21 @@ def main():
             ota_update_check(ota_updater)
             ota_timer = time.time()
 
+        x = 0 / 0
+
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
         log_traceback(exc)
-        #
-        # This is a gamble. If the crash happens in the wrong place,
-        # the below request is a waste of time. But... its worth a try.
-        requests.post(secrets.REST_CRASH_NOTIFY_URL,
-                      data=secrets.HOSTNAME,
-                      headers={'content-type': 'application/json'})
-        flash_led(1000, 3)  # slow flashing
+        if max_reset_attempts_exceeded():
+            #
+            # This is a gamble. If the crash happens in the wrong place,
+            # the below request is a waste of time. But... its worth a try.
+            requests.post(secrets.REST_CRASH_NOTIFY_URL,
+                          data=secrets.HOSTNAME,
+                          headers={'content-type': 'application/json'})
+            flash_led(1000, 3)  # slow flashing
+        else:
+            reset()
