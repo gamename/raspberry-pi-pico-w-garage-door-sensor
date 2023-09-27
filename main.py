@@ -34,7 +34,7 @@ DOOR_RECHECK_PAUSE_TIMER = 600  # seconds (10 min)
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
     "gamename/micropython-over-the-air-utility": ["ota.py"],
-    "gamename/micropython-utilities": ["utils.py"]
+    "gamename/micropython-utilities": ["utils.py", "cleanup_logs.py"]
 }
 
 
