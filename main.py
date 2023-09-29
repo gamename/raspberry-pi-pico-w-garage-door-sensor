@@ -124,7 +124,7 @@ def max_reset_attempts_exceeded(max_exception_resets=3):
 
 def main():
     #
-    # Set up a timer to force reboot on system hang
+    # Hostname can be no more than 15 chars (boo)
     network.hostname(secrets.HOSTNAME)
     #
     # Turn OFF the access point interface
