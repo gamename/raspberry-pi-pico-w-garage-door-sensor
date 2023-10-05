@@ -266,6 +266,8 @@ def main():
         time.sleep(0.5)
         reset()
 
+    purge_old_log_files()
+
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
 
     tprint("MAIN: Starting event loop")
