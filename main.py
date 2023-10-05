@@ -13,6 +13,7 @@ import ntptime
 import uio
 import urequests as requests
 from machine import Pin, reset, RTC
+from ota import OTAUpdater
 
 import secrets
 
@@ -20,6 +21,8 @@ import secrets
 # enable/disable debug
 DEBUG = False
 
+#
+# The reed switch sensor
 CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
 #
@@ -38,7 +41,15 @@ CDT_OFFSET_SECONDS = -5 * 3600  # UTC-5
 # A common request header for our POSTs
 REQUEST_HEADER = {'content-type': 'application/json'}
 
+# Files we want to update over-the-air (OTA)
+OTA_UPDATE_GITHUB_REPOS = {
+    "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
+    "gamename/micropython-over-the-air-utility": ["ota.py"]
+}
 
+#
+# How long should we pause before rechecking status?
+DOOR_OPEN_PAUSE_TIMER = 600  # seconds (10 min)
 def get_now():
     """
     Get the local time now
@@ -260,6 +271,26 @@ def purge_old_log_files(max_age=TRACE_LOG_MAX_KEEP_TIME):
         tprint(f"PURG: Found {found_count} logs. None deleted")
 
 
+def ota_update_interval_exceeded(ota_timer, interval=OTA_CHECK_TIMER):
+    """
+    Determine if we have waited long enough to check for OTA
+    file updates.
+
+
+    :param ota_timer: Timestamp to compare against
+    :type ota_timer: int
+    :param interval: What is the max wait time? Defaults to 600 seconds (10 min)
+    :type interval: int
+    :return: True or False
+    :rtype: bool
+    """
+    exceeded = False
+    ota_elapsed = int(time.time() - ota_timer)
+    if ota_elapsed > interval:
+        exceeded = True
+    return exceeded
+
+
 def main():
     #
     # Hostname can be no more than 15 chars (boo)
@@ -285,17 +316,37 @@ def main():
 
     purge_old_log_files()
 
+    tprint("MAIN: Set up OTA updates.")
+    ota_updater = OTAUpdater(secrets.GITHUB_USER, secrets.GITHUB_TOKEN, OTA_UPDATE_GITHUB_REPOS, debug=DEBUG)
+
+    tprint("MAIN: Run OTA update")
+    if ota_updater.updated():
+        tprint("MAIN: OTA updates added. Resetting system.")
+        time.sleep(1)
+        reset()
+
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
+
+    ota_timer = time.time()
 
     tprint("MAIN: Starting event loop")
     while True:
-        garage_door_closed = reed_switch.value()
+        garage_door_open = reed_switch.value()
 
-        if not garage_door_closed:
+        if garage_door_open:
             tprint("MAIN: Door opened.")
             resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
             resp.close()
-            time.sleep(600)  # 10 min
+            time.sleep(DOOR_OPEN_PAUSE_TIMER)  # 10 min
+        elif ota_update_interval_exceeded(ota_timer):
+            tprint("MAIN: Checking for OTA updates.")
+            if ota_updater.updated():
+                tprint("MAIN: Found OTA updates. Resetting system.")
+                time.sleep(0.5)
+                reset()
+            else:
+                tprint("MAIN: No OTA updates. Reset timer instead.")
+                ota_timer = time.time()
 
         if not wlan.isconnected():
             tprint("MAIN: Restart network connection.")
