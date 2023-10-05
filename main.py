@@ -54,6 +54,8 @@ OTA_UPDATE_GITHUB_REPOS = {
 #
 # How long should we pause before rechecking status?
 DOOR_OPEN_PAUSE_TIMER = 28800  # seconds (8 hrs)
+
+
 def get_now():
     """
     Get the local time now
