@@ -43,7 +43,7 @@ REQUEST_HEADER = {'content-type': 'application/json'}
 
 #
 # How often should we look for GitHub file updates?
-OTA_CHECK_TIMER = 300
+OTA_CHECK_TIMER = 28800  # seconds (8 hrs)
 
 # Files we want to update over-the-air (OTA)
 OTA_UPDATE_GITHUB_REPOS = {
@@ -53,7 +53,7 @@ OTA_UPDATE_GITHUB_REPOS = {
 
 #
 # How long should we pause before rechecking status?
-DOOR_OPEN_PAUSE_TIMER = 28800  # seconds (8 hrs)
+DOOR_OPEN_PAUSE_TIMER = 600  # seconds (10 min)
 
 
 def get_now():
