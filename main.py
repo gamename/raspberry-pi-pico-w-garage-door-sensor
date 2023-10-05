@@ -41,6 +41,10 @@ CDT_OFFSET_SECONDS = -5 * 3600  # UTC-5
 # A common request header for our POSTs
 REQUEST_HEADER = {'content-type': 'application/json'}
 
+#
+# How often should we look for GitHub file updates?
+OTA_CHECK_TIMER = 300
+
 # Files we want to update over-the-air (OTA)
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
