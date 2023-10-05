@@ -1,11 +1,9 @@
 """
-
-
-Pico W 3v3/Physical pin #36 ----> reed switch (normally open) ----> Pico W GPIO Pin #22/Physical Pin #29
-
-
-
+  Pico W                     Reed Switch         Pico W
+  ------                     ---------------     ------
+  3v3 (Physical pin #36) --> Normally Closed --> GPIO Pin #22 (Physical Pin #29)
 """
+import json
 import os
 import sys
 import time
@@ -14,22 +12,65 @@ import network
 import ntptime
 import uio
 import urequests as requests
-import utime
-from machine import Pin, reset
+from machine import Pin, reset, RTC
 
 import secrets
 
 CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
+#
+# Max amount of time we will keep a tracelog (in hours)
+TRACE_LOG_MAX_KEEP_TIME = 48
 
-def current_time_to_string():
+#
+# Offset from UTC for CST (Central Standard Time)
+CST_OFFSET_SECONDS = -6 * 3600  # UTC-6
+
+#
+# Offset from UTC for CDT (Central Daylight Time)
+CDT_OFFSET_SECONDS = -5 * 3600  # UTC-5
+
+#
+# A common request header for our POSTs
+REQUEST_HEADER = {'content-type': 'application/json'}
+
+
+def get_now():
+    """
+    Get the local time now
+
+    :return: timestamp
+    :rtype: time
+    """
+    current_offset_seconds = CDT_OFFSET_SECONDS if on_us_dst() else CST_OFFSET_SECONDS
+    return time.gmtime(time.time() + current_offset_seconds)
+
+
+def tprint(message):
+    """
+    Print with a pre-pended timestamp
+
+    :param message: The message to print
+    :type message: string
+    :return: Nothing
+    :rtype: None
+    """
+    current_time = get_now()
+    timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+        current_time[0], current_time[1], current_time[2],
+        current_time[3], current_time[4], current_time[5]
+    )
+    print("[{}] {}".format(timestamp, message))
+
+
+def current_local_time_to_string():
     """
     Convert the current time to a human-readable string
 
     :return: timestamp string
     :rtype: str
     """
-    current_time = utime.localtime()
+    current_time = get_now()
     year, month, day_of_month, hour, minute, second, *_ = current_time
     return f'{year}-{month}-{day_of_month}-{hour}-{minute}-{second}'
 
@@ -40,13 +81,17 @@ def log_traceback(exception):
 
     :param exception: An exception intercepted in a try/except statement
     :type exception: exception
-    :return: Nothing
+    :return:  formatted string
     """
     traceback_stream = uio.StringIO()
     sys.print_exception(exception, traceback_stream)
-    traceback_file = current_time_to_string() + '-' + 'traceback.log'
+    traceback_file = current_local_time_to_string() + '-' + 'traceback.log'
+    output = traceback_stream.getvalue()
+    print(output)
+    time.sleep(0.5)
     with open(traceback_file, 'w') as f:
-        f.write(traceback_stream.getvalue())
+        f.write(output)
+    return output
 
 
 def flash_led(count=100, interval=0.25):
@@ -122,6 +167,34 @@ def max_reset_attempts_exceeded(max_exception_resets=3):
     return bool(log_file_count > max_exception_resets)
 
 
+def on_us_dst():
+    """
+    Are we on US Daylight Savings Time (DST)?
+
+    :return: True/False
+    :rtype: bool
+    """
+    on_dst = False
+    # Get the current month and day
+    current_month = RTC().datetime()[1]  # 1-based month
+    current_day = RTC().datetime()[2]
+
+    # DST usually starts in March (month 3) and ends in November (month 11)
+    if 3 < current_month < 11:
+        on_dst = True
+    elif current_month == 3:
+        # DST starts on the second Sunday of March
+        second_sunday = 14 - (RTC().datetime()[6] + 1 - current_day) % 7
+        if current_day > second_sunday:
+            on_dst = True
+    elif current_month == 11:
+        # DST ends on the first Sunday of November
+        first_sunday = 7 - (RTC().datetime()[6] + 1 - current_day) % 7
+        if current_day <= first_sunday:
+            on_dst = True
+
+    return on_dst
+
 def main():
     #
     # Hostname can be no more than 15 chars (boo)
@@ -145,7 +218,8 @@ def main():
 
         if not garage_door_closed:
             print("MAIN: Door opened.")
-            requests.post(secrets.REST_API_URL, headers={'content-type': 'application/json'})
+            resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
+            resp.close()
             time.sleep(600)  # 10 min
 
         if not wlan.isconnected():
@@ -157,15 +231,18 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print("C R A S H")
-        log_traceback(exc)
+        print("-C R A S H-")
+        tb_msg = log_traceback(exc)
         if max_reset_attempts_exceeded():
-            #
-            # This is a gamble. If the crash happens in the wrong place,
-            # the below request is a waste of time. But... its worth a try.
-            requests.post(secrets.REST_CRASH_NOTIFY_URL,
-                          data=secrets.HOSTNAME,
-                          headers={'content-type': 'application/json'})
+            # We cannot send every traceback since that would be a problem
+            # in a crash loop. But we can send the last traceback. It will
+            # probably be a good clue.
+            traceback_data = {
+                "machine": secrets.HOSTNAME,
+                "traceback": tb_msg
+            }
+            resp = requests.post(secrets.REST_CRASH_NOTIFY_URL, data=json.dumps(traceback_data), headers=REQUEST_HEADER)
+            resp.close()
             flash_led(3000, 3)  # slow flashing for about 2.5 hours
         else:
             reset()
