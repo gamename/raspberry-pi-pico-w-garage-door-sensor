@@ -195,6 +195,54 @@ def on_us_dst():
 
     return on_dst
 
+
+def get_file_age(filename):
+    """
+    Get the age of a file in days
+
+    :return: The age in days or 0
+    :rtype: int
+    """
+    file_stat = os.stat(filename)
+    # Extract the modification timestamp (in seconds since the epoch)
+    modification_time = file_stat[8]
+    current_time = time.time()
+    age_seconds = current_time - modification_time
+    age_hours = (age_seconds % 86400) // 3600  # Number of seconds in an hour
+    print(f"FAGE: The file {filename} is {age_hours} hours old")
+    return int(age_hours)
+
+
+def purge_old_log_files(max_age=TRACE_LOG_MAX_KEEP_TIME):
+    """
+    Get rid of old traceback files based on their age
+
+    :param max_age: The longest we will keep them
+    :type max_age: int
+    :return: Nothing
+    :rtype: None
+    """
+    deletions = False
+    del_count = 0
+    found_count = 0
+    files = os.listdir()
+    tprint(f"PURG: Purging trace logs over {max_age} hours old")
+    for file in files:
+        age = get_file_age(file)
+        if file.endswith('.log'):
+            found_count += 1
+            if age > max_age:
+                tprint(f"PURG: Trace log file {file} is {age} hours old. Deleting")
+                os.remove(file)
+                del_count += 1
+                if not deletions:
+                    deletions = True
+    if deletions:
+        tprint(f"PURG: Found {found_count} logs . Deleted {del_count}")
+    else:
+        tprint(f"PURG: Found {found_count} logs. None deleted")
+
+
 def main():
     #
     # Hostname can be no more than 15 chars (boo)
@@ -209,21 +257,29 @@ def main():
     wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
     #
     # Sync system time with NTP
-    ntptime.settime()
+    print("MAIN: Sync system time with NTP")
+    try:
+        ntptime.settime()
+        tprint("MAIN: System time set successfully.")
+    except Exception as e:
+        print(f"MAIN: Error setting system time: {e}")
+        time.sleep(0.5)
+        reset()
+
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
 
-    print("MAIN: Starting event loop")
+    tprint("MAIN: Starting event loop")
     while True:
         garage_door_closed = reed_switch.value()
 
         if not garage_door_closed:
-            print("MAIN: Door opened.")
+            tprint("MAIN: Door opened.")
             resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
             resp.close()
             time.sleep(600)  # 10 min
 
         if not wlan.isconnected():
-            print("MAIN: Restart network connection.")
+            tprint("MAIN: Restart network connection.")
             wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
 
 
@@ -231,7 +287,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print("-C R A S H-")
+        tprint("-C R A S H-")
         tb_msg = log_traceback(exc)
         if max_reset_attempts_exceeded():
             # We cannot send every traceback since that would be a problem
