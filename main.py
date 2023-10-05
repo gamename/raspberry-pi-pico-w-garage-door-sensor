@@ -335,9 +335,9 @@ def main():
 
     tprint("MAIN: Starting event loop")
     while True:
-        garage_door_open = reed_switch.value()
+        door_is_closed = reed_switch.value()
 
-        if garage_door_open:
+        if not door_is_closed:
             tprint("MAIN: Door opened.")
             resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
             resp.close()
