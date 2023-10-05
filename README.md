@@ -41,7 +41,8 @@ and you should be fine.
 8. [USB Power Cable](https://www.amazon.com/gp/product/B07TKHLZHT/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&th=1)
 9. [Crimping Tool](https://www.amazon.com/gp/product/B07GFLWKTT/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&th=1)
 10. [Mini Screwdrivers](https://www.amazon.com/gp/product/B07YJG766F/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1)
-11. [5/64 Drill Bit](https://www.amazon.com/BOSCH-CO2132-Applications-Light-Gauge-High-Carbon/dp/B000AEVY0Q/ref=sr_1_4?crid=1YFLNC6N4WQTE&keywords=5%2F64%2Bdrill%2Bbit&qid=1696537876&s=hi&sprefix=5%2F64%2Ctools%2C125&sr=1-4&th=1)
+11. [5/64 Drill Bit](https://www.amazon.com/BOSCH-CO2132-Applications-Light-Gauge-High-Carbon/dp/B000AEVY0Q/ref=sr_1_4?crid=1YFLNC6N4WQTE&keywords=5%2F64%2Bdrill%2Bbit&qid=1696537876&s=hi&sprefix=5%2F64%2Ctools%2C125&sr=1-4&th=1)(
+    For drilling holes in the project box)
 
 ## Pictures
 
