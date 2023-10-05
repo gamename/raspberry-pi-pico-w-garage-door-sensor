@@ -16,6 +16,10 @@ from machine import Pin, reset, RTC
 
 import secrets
 
+#
+# enable/disable debug
+DEBUG = False
+
 CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
 #
@@ -130,13 +134,13 @@ def wifi_connect(wlan, ssid, password, connection_attempts=10, sleep_seconds_int
 
     led = Pin("LED", Pin.OUT)
     led.off()
-    print("WIFI: Attempting network connection")
+    debug_print("WIFI: Attempting network connection")
     wlan.active(True)
     time.sleep(sleep_seconds_interval)
     counter = 0
     wlan.connect(ssid, password)
     while not wlan.isconnected():
-        print(f'WIFI: Attempt: {counter}')
+        debug_print(f'WIFI: Attempt: {counter}')
         time.sleep(sleep_seconds_interval)
         counter += 1
         if counter > connection_attempts:
@@ -196,6 +200,19 @@ def on_us_dst():
     return on_dst
 
 
+def debug_print(msg):
+    """
+    A wrapper to print when debug is enabled
+
+    :param msg: The message to print
+    :type msg: str
+    :return: Nothing
+    :rtype: None
+    """
+    if DEBUG:
+        tprint(msg)
+
+
 def get_file_age(filename):
     """
     Get the age of a file in days
@@ -209,7 +226,7 @@ def get_file_age(filename):
     current_time = time.time()
     age_seconds = current_time - modification_time
     age_hours = (age_seconds % 86400) // 3600  # Number of seconds in an hour
-    print(f"FAGE: The file {filename} is {age_hours} hours old")
+    debug_print(f"FAGE: The file {filename} is {age_hours} hours old")
     return int(age_hours)
 
 
@@ -260,9 +277,9 @@ def main():
     print("MAIN: Sync system time with NTP")
     try:
         ntptime.settime()
-        tprint("MAIN: System time set successfully.")
+        debug_print("MAIN: System time set successfully.")
     except Exception as e:
-        print(f"MAIN: Error setting system time: {e}")
+        tprint(f"MAIN: Error setting system time: {e}")
         time.sleep(0.5)
         reset()
 
