@@ -48,7 +48,8 @@ OTA_CHECK_TIMER = 28800  # seconds (8 hrs)
 # Files we want to update over-the-air (OTA)
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
-    "gamename/micropython-over-the-air-utility": ["ota.py"]
+    "gamename/micropython-over-the-air-utility": ["ota.py"],
+    "gamename/micropython-gamename-utilities": ["utils.py", "cleanup_logs.py"]
 }
 
 #
