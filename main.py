@@ -24,25 +24,10 @@ DEBUG = False
 CONTACT_PIN = 22  # GPIO pin #22, physical pin #29
 
 #
-# Max amount of time we will keep a tracelog (in hours)
-TRACE_LOG_MAX_KEEP_TIME = 48
-
-#
-# Offset from UTC for CST (Central Standard Time)
-CST_OFFSET_SECONDS = -6 * 3600  # UTC-6
-
-#
-# Offset from UTC for CDT (Central Daylight Time)
-CDT_OFFSET_SECONDS = -5 * 3600  # UTC-5
-
-#
 # A common request header for our POSTs
 REQUEST_HEADER = {'content-type': 'application/json'}
 
 #
-# How often should we look for GitHub file updates?
-OTA_CHECK_TIMER = 28800  # seconds (8 hrs)
-
 # Files we want to update over-the-air (OTA)
 OTA_UPDATE_GITHUB_REPOS = {
     "gamename/raspberry-pi-pico-w-garage-door-sensor": ["boot.py", "main.py"],
