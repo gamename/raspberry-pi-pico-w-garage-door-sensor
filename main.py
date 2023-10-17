@@ -68,11 +68,13 @@ def main():
     utils.tprint("MAIN: Set up OTA updates.")
     ota_updater = OTAUpdater(secrets.GITHUB_USER, secrets.GITHUB_TOKEN, OTA_UPDATE_GITHUB_REPOS, debug=DEBUG)
 
-    utils.tprint("MAIN: Run OTA update")
+    utils.tprint("MAIN: Check for OTA updates")
     if ota_updater.updated():
         utils.tprint("MAIN: OTA updates added. Resetting system.")
         time.sleep(1)
         reset()
+    else:
+        utils.tprint("MAIN: No OTA updates found.")
 
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
 
