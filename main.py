@@ -65,7 +65,7 @@ def main():
 
     utils.purge_old_log_files()
 
-    utils.tprint("MAIN: Set up OTA updates.")
+    utils.tprint("MAIN: Configure OTA updates.")
     ota_updater = OTAUpdater(secrets.GITHUB_USER, secrets.GITHUB_TOKEN, OTA_UPDATE_GITHUB_REPOS, debug=DEBUG)
 
     utils.tprint("MAIN: Check for OTA updates")
