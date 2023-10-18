@@ -108,7 +108,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        utils.tprint("-C R A S H-")
+        print("-C R A S H-")
         tb_msg = utils.log_traceback(exc)
         if utils.max_reset_attempts_exceeded():
             # We cannot send every traceback since that would be a problem
