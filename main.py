@@ -3,14 +3,12 @@
   ------                     ---------------     ------
   3v3 (Physical pin #36) --> Normally Closed --> GPIO Pin #22 (Physical Pin #29)
 """
-import json
 import time
 
 import network
-import ntptime
 import urequests as requests
 import utils
-from machine import Pin, reset
+from machine import Pin
 from ota import OTAUpdater
 
 import secrets
@@ -54,31 +52,20 @@ def main():
     utils.wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
     #
     # Sync system time with NTP
-    print("MAIN: Sync system time with NTP")
-    try:
-        ntptime.settime()
-        utils.debug_print("MAIN: System time set successfully.")
-    except Exception as e:
-        utils.tprint(f"MAIN: Error setting system time: {e}")
-        time.sleep(0.5)
-        reset()
+    utils.time_sync()
 
+    utils.tprint("MAIN: Handle any old traceback logs")
     utils.purge_old_log_files()
-
-    utils.tprint("MAIN: Configure OTA updates.")
-    ota_updater = OTAUpdater(secrets.GITHUB_USER, secrets.GITHUB_TOKEN, OTA_UPDATE_GITHUB_REPOS, debug=DEBUG)
-
-    utils.tprint("MAIN: Check for OTA updates")
-    if ota_updater.updated():
-        utils.tprint("MAIN: OTA updates added. Resetting system.")
-        time.sleep(1)
-        reset()
-    else:
-        utils.tprint("MAIN: No OTA updates found.")
+    #
+    utils.tprint("MAIN: Configure OTA.")
+    ota_updater = OTAUpdater(secrets.GITHUB_USER,
+                             secrets.GITHUB_TOKEN,
+                             OTA_UPDATE_GITHUB_REPOS,
+                             update_interval_minutes=1440,
+                             update_on_initialization=True,
+                             debug=DEBUG)
 
     reed_switch = Pin(CONTACT_PIN, Pin.IN, Pin.PULL_DOWN)
-
-    ota_timer = time.time()
 
     utils.tprint("MAIN: Starting event loop")
     while True:
@@ -89,15 +76,8 @@ def main():
             resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
             resp.close()
             time.sleep(DOOR_OPEN_PAUSE_TIMER)  # 10 min
-        elif utils.ota_update_interval_exceeded(ota_timer):
-            utils.tprint("MAIN: Checking for OTA updates.")
-            if ota_updater.updated():
-                utils.tprint("MAIN: Found OTA updates. Resetting system.")
-                time.sleep(0.5)
-                reset()
-            else:
-                utils.tprint("MAIN: No OTA updates. Reset timer instead.")
-                ota_timer = time.time()
+        else:
+            ota_updater.updated()
 
         if not wlan.isconnected():
             utils.tprint("MAIN: Restart network connection.")
@@ -108,18 +88,4 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print("-C R A S H-")
-        tb_msg = utils.log_traceback(exc)
-        if utils.max_reset_attempts_exceeded():
-            # We cannot send every traceback since that would be a problem
-            # in a crash loop. But we can send the last traceback. It will
-            # probably be a good clue.
-            traceback_data = {
-                "machine": secrets.HOSTNAME,
-                "traceback": tb_msg
-            }
-            resp = requests.post(secrets.REST_CRASH_NOTIFY_URL, data=json.dumps(traceback_data), headers=REQUEST_HEADER)
-            resp.close()
-            utils.flash_led(3000, 3)  # slow flashing for about 2.5 hours
-        else:
-            reset()
+        utils.handle_exception(exc, secrets.HOSTNAME, secrets.REST_CRASH_NOTIFY_URL)
