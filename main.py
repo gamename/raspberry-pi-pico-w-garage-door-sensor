@@ -3,15 +3,13 @@
   ------                     ---------------     ------
   3v3 (Physical pin #36) --> Normally Closed --> GPIO Pin #22 (Physical Pin #29)
 """
+import secrets
 import time
 
 import network
 import urequests as requests
 import utils
 from machine import Pin
-from ota import OTAUpdater
-
-import secrets
 
 #
 # enable/disable debug
@@ -64,6 +62,8 @@ def main():
         if not wlan.isconnected():
             utils.tprint("MAIN: Restart network connection.")
             utils.wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
+
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":
