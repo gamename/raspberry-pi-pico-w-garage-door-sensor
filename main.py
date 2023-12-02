@@ -55,15 +55,22 @@ def main():
 
         if not door_is_closed:
             utils.tprint("MAIN: Door opened.")
-            resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
-            resp.close()
-            time.sleep(DOOR_OPEN_PAUSE_TIMER)  # 10 min
+            try:
+                resp = requests.post(secrets.REST_API_URL, headers=REQUEST_HEADER)
+            except OSError as e:
+                if e.errno == -2:
+                    utils.tprint("MAIN: Error - Name resolution failed. Please check your URL or network connection.")
+                else:
+                    utils.tprint(f"MAIN: An unexpected OS error occurred: {e}")
+            else:
+                resp.close()
+                time.sleep(DOOR_OPEN_PAUSE_TIMER)  # 10 min
 
         if not wlan.isconnected():
             utils.tprint("MAIN: Restart network connection.")
             utils.wifi_connect(wlan, secrets.SSID, secrets.PASSWORD)
 
-        time.sleep(0.5)
+        time.sleep(1)
 
 
 if __name__ == "__main__":
