@@ -61,7 +61,7 @@ def main():
                 if e.errno == -2:
                     utils.tprint("MAIN: Error - Name resolution failed. Please check your URL or network connection.")
                 else:
-                    utils.tprint(f"MAIN: An unexpected OS error occurred: {e}")
+                    raise
             else:
                 resp.close()
                 time.sleep(DOOR_OPEN_PAUSE_TIMER)  # 10 min
